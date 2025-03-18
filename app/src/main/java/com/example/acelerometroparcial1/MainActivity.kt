@@ -77,13 +77,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        sensorManager.unregisterListener(this)
-        stopVibration()
-        turnOffFlash()
-    }
-
     override fun onSensorChanged(event: SensorEvent?) {
         event?.let {
             if (it.sensor.type == Sensor.TYPE_ACCELEROMETER) {
@@ -124,6 +117,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
                 playCurrentSound()
                 vibrateWhileElevated()
             }
+
             2, 3 -> toggleFlashAndImage()
         }
     }
@@ -141,7 +135,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     private fun changeImage() {
         if (!isFlashOn && (mediaPlayer == null || !mediaPlayer!!.isPlaying)) { // Permitir cambiar de hechizo solo si la linterna está apagada y no se está reproduciendo media
-            currentIndex = (currentIndex + 1) % 2 // Solo permitir cambiar entre Expelliarmus y Leviosa
+            currentIndex =
+                (currentIndex + 1) % 2 // Solo permitir cambiar entre Expelliarmus y Leviosa
         }
     }
 
@@ -184,36 +179,47 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
+    override fun onPause() {
+        super.onPause()
+        sensorManager.unregisterListener(this) // Liberar sensores
+        stopVibration() // Detener vibración
+        turnOffFlash() // Apagar linterna
+        mediaPlayer?.release() // Liberar MediaPlayer
+        mediaPlayer = null // Eliminar instancia
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        mediaPlayer?.release()
+        sensorManager.unregisterListener(this) // Redundancia por seguridad
         stopVibration()
         turnOffFlash()
+        mediaPlayer?.release()
+        mediaPlayer = null
     }
-}
 
-@Composable
-fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Image(
-            painter = painterResource(id = imageRes),
-            contentDescription = "Imagen de hechizo",
-            modifier = Modifier.size(250.dp).clickable { onImageClick() }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            "Toca la imagen para cambiar\n" +
-                    "Agita el celular para activar:\n"
-        )
+    @Composable
+    fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(id = imageRes),
+                contentDescription = "Imagen de hechizo",
+                modifier = Modifier.size(250.dp).clickable { onImageClick() }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Toca la imagen para cambiar\n" +
+                        "Agita el celular para activar:\n"
+            )
+        }
     }
-}
 
-@Preview(showBackground = true)
-@Composable
-fun PreviewImageScreen() {
-    ImageScreen(imageRes = R.drawable.nox) {}
+    @Preview(showBackground = true)
+    @Composable
+    fun PreviewImageScreen() {
+        ImageScreen(imageRes = R.drawable.nox) {}
+    }
 }
