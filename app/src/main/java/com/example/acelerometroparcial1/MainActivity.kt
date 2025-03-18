@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     private val imageSoundMap = listOf(
         Pair(R.drawable.nox, R.raw.lumos_sound_effect), // Nox/Lumos (imagen por defecto)
+        Pair(R.drawable.lumus, R.raw.lumos_sound_effect), // Nox/Lumos (imagen por defecto)
         Pair(R.drawable.leviosa, R.raw.leviosa),        // Leviosa
         Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand) // Expelliarmus
     )
@@ -121,9 +122,10 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     private fun activateAction() {
         when (currentIndex) {
-            0 -> toggleFlashAndImage() // Nox/Lumos
-            1 -> playCurrentSound() // Leviosa
-            2 -> playCurrentSound() // Expelliarmus
+            0 -> toggleFlashAndImage() // Nox
+            1 -> toggleFlashAndImage() // Lumus
+            2 -> playCurrentSound() // Leviosa
+            3 -> playCurrentSound() // Expelliarmus
         }
     }
 
@@ -166,7 +168,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         cameraId?.let {
             cameraManager?.setTorchMode(it, true)
             isFlashOn = true
-            currentIndex = 0 // Cambiar a Lumos
+            currentIndex = 1 // Cambiar a Lumos
         }
     }
 
