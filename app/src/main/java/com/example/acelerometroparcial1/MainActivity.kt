@@ -42,13 +42,12 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private val vibrationHandler = Handler(Looper.getMainLooper())
 
     private val imageSoundMap = listOf(
-        Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand),
-        Pair(R.drawable.leviosa, R.raw.leviosa),
-        Pair(R.drawable.nox, R.raw.lumos_sound_effect),  // Nox (imagen por defecto)
-        Pair(R.drawable.lumus, R.raw.lumos_sound_effect) // Lumos (linterna encendida)
+        Pair(R.drawable.nox, R.raw.lumos_sound_effect), // Nox/Lumos (imagen por defecto)
+        Pair(R.drawable.leviosa, R.raw.leviosa),        // Leviosa
+        Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand) // Expelliarmus
     )
 
-    private var currentIndex by mutableIntStateOf(2) // Nox por defecto
+    private var currentIndex by mutableIntStateOf(0) // Nox/Lumos por defecto
     private var lastX = 0f
     private var lastY = 0f
     private var lastZ = 0f
@@ -122,26 +121,25 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     private fun activateAction() {
         when (currentIndex) {
-            0 -> playCurrentSound()
-            1 -> playCurrentSound()
-            2, 3 -> toggleFlashAndImage()
+            0 -> toggleFlashAndImage() // Nox/Lumos
+            1 -> playCurrentSound() // Leviosa
+            2 -> playCurrentSound() // Expelliarmus
         }
     }
 
     private fun toggleFlashAndImage() {
         if (isFlashOn) {
             turnOffFlash()
-            currentIndex = 2 // Cambiar a Nox
         } else {
             turnOnFlash()
-            currentIndex = 3 // Cambiar a Lumos
         }
         playCurrentSound()
     }
 
     private fun changeImage() {
-        if (!isFlashOn) { // Permitir cambiar de hechizo solo si la linterna está apagada
-            currentIndex = (currentIndex + 1) % 2 // Solo permitir cambiar entre Expelliarmus y Leviosa
+        currentIndex = (currentIndex + 1) % imageSoundMap.size
+        if (currentIndex == 0 && isFlashOn) {
+            turnOffFlash() // Apagar la linterna si está encendida y se selecciona Nox/Lumos
         }
     }
 
@@ -168,6 +166,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         cameraId?.let {
             cameraManager?.setTorchMode(it, true)
             isFlashOn = true
+            currentIndex = 0 // Cambiar a Lumos
         }
     }
 
@@ -175,6 +174,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         cameraId?.let {
             cameraManager?.setTorchMode(it, false)
             isFlashOn = false
+            currentIndex = 0 // Cambiar a Nox
         }
     }
 
@@ -205,7 +205,10 @@ fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
         // Texto superpuesto
         Text(
             text = "Toca la imagen para cambiar\n" +
-                    "Agita el celular para activar:\n" ,
+                    "Agita el celular para activar:\n" +
+                    "• Expelliarmus: Sonido\n" +
+                    "• Leviosa: Sonido y vibración mientras está elevado\n" +
+                    "• Lumos: Alternar linterna",
             modifier = Modifier
                 .align(Alignment.BottomCenter) // Alinea el texto en la parte inferior
                 .padding(16.dp), // Añade un poco de espacio alrededor del texto
@@ -221,4 +224,3 @@ fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
 fun PreviewImageScreen() {
     ImageScreen(imageRes = R.drawable.nox) {}
 }
-// bloquear
