@@ -8,8 +8,11 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.hardware.camera2.CameraManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -20,10 +23,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.abs
-import android.hardware.camera2.CameraManager
 
 class MainActivity : ComponentActivity(), SensorEventListener {
 
@@ -33,20 +37,18 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private var cameraManager: CameraManager? = null
     private var vibrator: Vibrator? = null
     private var cameraId: String? = null
-    private var isFlashOn by mutableStateOf(false) // Estado para controlar la linterna
+    private var isFlashOn by mutableStateOf(false)
+    private var isVibrating = false
+    private val vibrationHandler = Handler(Looper.getMainLooper())
 
-    // Lista de imágenes y sonidos asociados
-    private val imageSoundMap: List<Pair<Int, Int>> = listOf(
-        Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand), // Expelliarmus
-        Pair(R.drawable.leviosa, R.raw.leviosa),               // Leviosa
-        Pair(R.drawable.nox, R.raw.lumos_sound_effect),                 // Nox (imagen por defecto)
-        Pair(R.drawable.lumus, R.raw.lumos_sound_effect)       // Lumos (linterna encendida)
+    private val imageSoundMap = listOf(
+        Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand),
+        Pair(R.drawable.leviosa, R.raw.leviosa),
+        Pair(R.drawable.nox, R.raw.lumos_sound_effect),  // Nox (imagen por defecto)
+        Pair(R.drawable.lumus, R.raw.lumos_sound_effect) // Lumos (linterna encendida)
     )
 
-    private var currentIndex by mutableIntStateOf(2) // Índice actual de la imagen/sonido (inicia en Nox)
-    private var isVibrating = false // Estado para controlar la vibración
-
-    // Variables para detectar el movimiento
+    private var currentIndex by mutableIntStateOf(2) // Nox por defecto
     private var lastX = 0f
     private var lastY = 0f
     private var lastZ = 0f
@@ -54,7 +56,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Bloquear la rotación de pantalla
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -81,8 +82,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     override fun onPause() {
         super.onPause()
         sensorManager.unregisterListener(this)
-        turnOffFlash() // Asegurarse de apagar la linterna si la app se pausa
-        stopVibration() // Asegurarse de detener la vibración si la app se pausa
+        stopVibration()
+        turnOffFlash()
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -98,50 +99,48 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
                 val currentTime = System.currentTimeMillis()
                 if ((deltaX > 10 || deltaY > 10 || deltaZ > 10) && (currentTime - lastTime > 1000)) {
-                    activateAction() // Activar acción según el hechizo actual
+                    activateAction()
                     lastTime = currentTime
                 }
 
                 lastX = x
                 lastY = y
                 lastZ = z
-            } else {
-                stopVibration() // Detener la vibración cuando el dispositivo no se está moviendo
+
+                if (currentIndex == 1 && y > 5) { // Detectar si el teléfono está a un nivel elevado
+                    if (!isVibrating) {
+                        isVibrating = true
+                        vibrateWhileElevated()
+                    }
+                } else {
+                    stopVibration()
+                }
             }
         }
     }
 
     private fun activateAction() {
         when (currentIndex) {
-            0 -> playCurrentSound() // Expelliarmus: solo reproduce sonido
-            1 -> { // Leviosa: reproduce sonido y vibra
-                playCurrentSound()
-                isVibrating = true
-                vibratePhone()
-            }
-            2 -> toggleFlashAndImage() // Nox/Lumos: alterna entre linterna encendida/apagada
-            3 -> toggleFlashAndImage() // Nox/Lumos: alterna entre linterna encendida/apagada
+            0 -> playCurrentSound()
+            1 -> playCurrentSound()
+            2, 3 -> toggleFlashAndImage()
         }
     }
 
     private fun toggleFlashAndImage() {
         if (isFlashOn) {
-            // Apagar linterna y cambiar a Nox
             turnOffFlash()
-            currentIndex = 2 // Nox
+            currentIndex = 2 // Cambiar a Nox
         } else {
-            // Encender linterna y cambiar a Lumos
             turnOnFlash()
-            currentIndex = 3 // Lumos
+            currentIndex = 3 // Cambiar a Lumos
         }
-        playCurrentSound() // Reproducir sonido correspondiente
+        playCurrentSound()
     }
 
     private fun changeImage() {
-        // Cambiar al siguiente índice en la lista
-        currentIndex = (currentIndex + 1) % imageSoundMap.size
-        if (currentIndex != 3) {
-            turnOffFlash() // Apagar la linterna si no es Lumos
+        if (!isFlashOn) { // Permitir cambiar de hechizo solo si la linterna está apagada
+            currentIndex = (currentIndex + 1) % 2 // Solo permitir cambiar entre Expelliarmus y Leviosa
         }
     }
 
@@ -151,14 +150,16 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         mediaPlayer?.start()
     }
 
-    private fun vibratePhone() {
+    private fun vibrateWhileElevated() {
         if (isVibrating) {
             vibrator?.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrationHandler.postDelayed({ vibrateWhileElevated() }, 500)
         }
     }
 
     private fun stopVibration() {
         isVibrating = false
+        vibrationHandler.removeCallbacksAndMessages(null)
         vibrator?.cancel()
     }
 
@@ -181,30 +182,35 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     override fun onDestroy() {
         super.onDestroy()
         mediaPlayer?.release()
-        turnOffFlash() // Apagar linterna al cerrar la app
-        stopVibration() // Detener vibración al cerrar la app
+        stopVibration()
+        turnOffFlash()
     }
 }
 
 @Composable
 fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable { onImageClick() }
     ) {
+        // Imagen de fondo
         Image(
             painter = painterResource(id = imageRes),
             contentDescription = "Imagen de hechizo",
-            modifier = Modifier.size(250.dp).clickable { onImageClick() }
+            modifier = Modifier.fillMaxSize(),
         )
-        Spacer(modifier = Modifier.height(16.dp))
+
+        // Texto superpuesto
         Text(
-            "Toca la imagen para cambiar\n" +
-                    "Agita el celular para activar:\n" +
-                    "• Expelliarmus: Sonido\n" +
-                    "• Leviosa: Sonido y vibración\n" +
-                    "• Nox/Lumos: Alternar linterna"
+            text = "Toca la imagen para cambiar\n" +
+                    "Agita el celular para activar:\n" ,
+            modifier = Modifier
+                .align(Alignment.BottomCenter) // Alinea el texto en la parte inferior
+                .padding(16.dp), // Añade un poco de espacio alrededor del texto
+            color = MaterialTheme.colorScheme.onSurface, // Color del texto para que sea visible
+            fontSize = 18.sp, // Tamaño del texto
+            fontWeight = FontWeight.Bold // Texto en negrita
         )
     }
 }
