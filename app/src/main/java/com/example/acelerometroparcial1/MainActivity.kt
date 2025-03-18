@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         sensorManager.unregisterListener(this)
         stopVibration()
         turnOffFlash()
+        mediaPlayer?.release()
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -220,3 +221,4 @@ fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
 fun PreviewImageScreen() {
     ImageScreen(imageRes = R.drawable.nox) {}
 }
+// bloquear
