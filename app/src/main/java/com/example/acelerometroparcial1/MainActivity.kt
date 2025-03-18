@@ -221,10 +221,7 @@ fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
         // Texto superpuesto
         Text(
             text = "Toca la imagen para cambiar\n" +
-                    "Agita el celular para activar:\n" +
-                    "• Expelliarmus: Sonido\n" +
-                    "• Leviosa: Sonido y vibración mientras está elevado\n" +
-                    "• Lumos: Alternar linterna",
+                    "Agita el celular para activar:\n",
             modifier = Modifier
                 .align(Alignment.BottomCenter) // Alinea el texto en la parte inferior
                 .padding(16.dp), // Añade un poco de espacio alrededor del texto
