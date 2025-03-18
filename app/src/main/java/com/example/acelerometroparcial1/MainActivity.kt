@@ -1,5 +1,8 @@
+@file:Suppress("DEPRECATION")
+
 package com.example.acelerometroparcial1
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.hardware.Sensor
@@ -53,6 +56,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private var lastZ = 0f
     private var lastTime: Long = 0
 
+    @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
