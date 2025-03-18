@@ -1,8 +1,5 @@
-@file:Suppress("DEPRECATION")
-
 package com.example.acelerometroparcial1
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.hardware.Sensor
@@ -26,10 +23,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 
 class MainActivity : ComponentActivity(), SensorEventListener {
@@ -45,18 +40,18 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private val vibrationHandler = Handler(Looper.getMainLooper())
 
     private val imageSoundMap = listOf(
-        Pair(R.drawable.nox, R.raw.lumos_sound_effect), // Nox/Lumos (imagen por defecto)
-        Pair(R.drawable.leviosa, R.raw.leviosa),        // Leviosa
-        Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand) // Expelliarmus
+        Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand),
+        Pair(R.drawable.leviosa, R.raw.leviosa),
+        Pair(R.drawable.nox, R.raw.lumos_sound_effect),  // Nox (imagen por defecto)
+        Pair(R.drawable.lumus, R.raw.lumos_sound_effect) // Lumos (linterna encendida)
     )
 
-    private var currentIndex by mutableIntStateOf(0) // Nox/Lumos por defecto
+    private var currentIndex by mutableIntStateOf(2) // Nox por defecto
     private var lastX = 0f
     private var lastY = 0f
     private var lastZ = 0f
     private var lastTime: Long = 0
 
-    @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -68,12 +63,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         cameraId = cameraManager?.cameraIdList?.get(0)
 
         setContent {
-            val imageRes = when {
-                currentIndex == 0 && isFlashOn -> R.drawable.lumus
-                else -> imageSoundMap[currentIndex].first
-            }
             ImageScreen(
-                imageRes = imageRes,
+                imageRes = imageSoundMap[currentIndex].first,
                 onImageClick = { changeImage() }
             )
         }
@@ -91,9 +82,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         sensorManager.unregisterListener(this)
         stopVibration()
         turnOffFlash()
-        mediaPlayer?.release()
-        mediaPlayer = null // Liberar el recurso de mediaPlayer
-        clearSensorData() // Borrar información de los sensores
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -131,26 +119,53 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     private fun activateAction() {
         when (currentIndex) {
-            0 -> toggleFlashAndImage() // Nox/Lumos
-            1 -> playCurrentSound() // Leviosa
-            2 -> playCurrentSound() // Expelliarmus
+            0 -> playCurrentSound()
+            1 -> {
+                playCurrentSound()
+                vibrateWhileElevated()
+            }
+            2, 3 -> toggleFlashAndImage()
         }
-    }
-
-    private fun changeImage() {
-        if (isFlashOn) {
-            return // Bloquear cambio si la linterna está encendida
-        }
-        currentIndex = (currentIndex + 1) % imageSoundMap.size
     }
 
     private fun toggleFlashAndImage() {
         if (isFlashOn) {
             turnOffFlash()
+            currentIndex = 2 // Cambiar a Nox
         } else {
             turnOnFlash()
+            currentIndex = 3 // Cambiar a Lumos
         }
         playCurrentSound()
+    }
+
+    private fun changeImage() {
+        if (!isFlashOn && (mediaPlayer == null || !mediaPlayer!!.isPlaying)) { // Permitir cambiar de hechizo solo si la linterna está apagada y no se está reproduciendo media
+            currentIndex = (currentIndex + 1) % 2 // Solo permitir cambiar entre Expelliarmus y Leviosa
+        }
+    }
+
+    private fun playCurrentSound() {
+        mediaPlayer?.release()
+        mediaPlayer = MediaPlayer.create(this, imageSoundMap[currentIndex].second)
+        mediaPlayer?.start()
+        mediaPlayer?.setOnCompletionListener {
+            mediaPlayer?.release()
+            mediaPlayer = null
+        }
+    }
+
+    private fun vibrateWhileElevated() {
+        if (isVibrating) {
+            vibrator?.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrationHandler.postDelayed({ vibrateWhileElevated() }, 500)
+        }
+    }
+
+    private fun stopVibration() {
+        isVibrating = false
+        vibrationHandler.removeCallbacksAndMessages(null)
+        vibrator?.cancel()
     }
 
     private fun turnOnFlash() {
@@ -167,32 +182,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         }
     }
 
-    private fun playCurrentSound() {
-        mediaPlayer?.release()
-        mediaPlayer = MediaPlayer.create(this, imageSoundMap[currentIndex].second)
-        mediaPlayer?.start()
-    }
-
-    private fun vibrateWhileElevated() {
-        if (isVibrating) {
-            vibrator?.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
-            vibrationHandler.postDelayed({ vibrateWhileElevated() }, 500)
-        }
-    }
-
-    private fun stopVibration() {
-        isVibrating = false
-        vibrationHandler.removeCallbacksAndMessages(null)
-        vibrator?.cancel()
-    }
-
-    private fun clearSensorData() {
-        lastX = 0f
-        lastY = 0f
-        lastZ = 0f
-        lastTime = 0
-    }
-
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     override fun onDestroy() {
@@ -200,34 +189,25 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         mediaPlayer?.release()
         stopVibration()
         turnOffFlash()
-        clearSensorData() // Borrar información de los sensores
     }
 }
 
 @Composable
 fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable { onImageClick() }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        // Imagen de fondo
         Image(
             painter = painterResource(id = imageRes),
             contentDescription = "Imagen de hechizo",
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.size(250.dp).clickable { onImageClick() }
         )
-
-        // Texto superpuesto
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Toca la imagen para cambiar\n" +
-                    "Agita el celular para activar:\n",
-            modifier = Modifier
-                .align(Alignment.BottomCenter) // Alinea el texto en la parte inferior
-                .padding(16.dp), // Añade un poco de espacio alrededor del texto
-            color = MaterialTheme.colorScheme.onSurface, // Color del texto para que sea visible
-            fontSize = 18.sp, // Tamaño del texto
-            fontWeight = FontWeight.Bold // Texto en negrita
+            "Toca la imagen para cambiar\n" +
+                    "Agita el celular para activar:\n"
         )
     }
 }
