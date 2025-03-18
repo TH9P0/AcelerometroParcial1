@@ -64,8 +64,12 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         cameraId = cameraManager?.cameraIdList?.get(0)
 
         setContent {
+            val imageRes = when {
+                currentIndex == 0 && isFlashOn -> R.drawable.lumus
+                else -> imageSoundMap[currentIndex].first
+            }
             ImageScreen(
-                imageRes = imageSoundMap[currentIndex].first,
+                imageRes = imageRes,
                 onImageClick = { changeImage() }
             )
         }
@@ -127,6 +131,13 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         }
     }
 
+    private fun changeImage() {
+        if (isFlashOn) {
+            return // Bloquear cambio si la linterna está encendida
+        }
+        currentIndex = (currentIndex + 1) % imageSoundMap.size
+    }
+
     private fun toggleFlashAndImage() {
         if (isFlashOn) {
             turnOffFlash()
@@ -136,10 +147,17 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         playCurrentSound()
     }
 
-    private fun changeImage() {
-        currentIndex = (currentIndex + 1) % imageSoundMap.size
-        if (currentIndex == 0 && isFlashOn) {
-            turnOffFlash() // Apagar la linterna si está encendida y se selecciona Nox/Lumos
+    private fun turnOnFlash() {
+        cameraId?.let {
+            cameraManager?.setTorchMode(it, true)
+            isFlashOn = true
+        }
+    }
+
+    private fun turnOffFlash() {
+        cameraId?.let {
+            cameraManager?.setTorchMode(it, false)
+            isFlashOn = false
         }
     }
 
@@ -160,22 +178,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         isVibrating = false
         vibrationHandler.removeCallbacksAndMessages(null)
         vibrator?.cancel()
-    }
-
-    private fun turnOnFlash() {
-        cameraId?.let {
-            cameraManager?.setTorchMode(it, true)
-            isFlashOn = true
-            currentIndex = 0 // Cambiar a Lumos
-        }
-    }
-
-    private fun turnOffFlash() {
-        cameraId?.let {
-            cameraManager?.setTorchMode(it, false)
-            isFlashOn = false
-            currentIndex = 0 // Cambiar a Nox
-        }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
