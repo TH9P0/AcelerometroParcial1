@@ -88,6 +88,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         stopVibration()
         turnOffFlash()
         mediaPlayer?.release()
+        mediaPlayer = null // Liberar el recurso de mediaPlayer
+        clearSensorData() // Borrar información de los sensores
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -180,6 +182,13 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         vibrator?.cancel()
     }
 
+    private fun clearSensorData() {
+        lastX = 0f
+        lastY = 0f
+        lastZ = 0f
+        lastTime = 0
+    }
+
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     override fun onDestroy() {
@@ -187,6 +196,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         mediaPlayer?.release()
         stopVibration()
         turnOffFlash()
+        clearSensorData() // Borrar información de los sensores
     }
 }
 
@@ -207,7 +217,10 @@ fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
         // Texto superpuesto
         Text(
             text = "Toca la imagen para cambiar\n" +
-                    "Agita el celular para activar:\n",
+                    "Agita el celular para activar:\n" +
+                    "• Expelliarmus: Sonido\n" +
+                    "• Leviosa: Sonido y vibración mientras está elevado\n" +
+                    "• Lumos: Alternar linterna",
             modifier = Modifier
                 .align(Alignment.BottomCenter) // Alinea el texto en la parte inferior
                 .padding(16.dp), // Añade un poco de espacio alrededor del texto
