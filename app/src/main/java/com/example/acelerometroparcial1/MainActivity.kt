@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     private val imageSoundMap = listOf(
         Pair(R.drawable.nox, R.raw.lumos_sound_effect), // Nox/Lumos (imagen por defecto)=
-        Pair(R.drawable.leviosa, R.raw.leviosa),        // Leviosa
+        Pair(R.drawable.leviosa, R.raw.ITSLEVIOSAsolo),        // Leviosa
         Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand), // Expelliarmus
         Pair(R.drawable.avada_kedavra, R.raw.avada_kedavra), // Avada_Kedabra
         Pair(R.drawable.lumus, R.raw.lumos_sound_effect) // Nox/Lumos (imagen por defecto)=
