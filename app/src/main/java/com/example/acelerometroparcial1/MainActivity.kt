@@ -20,8 +20,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,10 +42,11 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private val vibrationHandler = Handler(Looper.getMainLooper())
 
     private val imageSoundMap = listOf(
-        Pair(R.drawable.nox, R.raw.lumos_sound_effect), // Nox/Lumos (imagen por defecto)
-        Pair(R.drawable.lumus, R.raw.lumos_sound_effect), // Nox/Lumos (imagen por defecto)
+        Pair(R.drawable.nox, R.raw.lumos_sound_effect), // Nox/Lumos (imagen por defecto)=
         Pair(R.drawable.leviosa, R.raw.leviosa),        // Leviosa
-        Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand) // Expelliarmus
+        Pair(R.drawable.expeliarmus, R.raw.expelliarmus_wand), // Expelliarmus
+        Pair(R.drawable.avada_kedavra, R.raw.avada_kedavra), // Avada_Kedabra
+        Pair(R.drawable.lumus, R.raw.lumos_sound_effect) // Nox/Lumos (imagen por defecto)=
     )
 
     private var currentIndex by mutableIntStateOf(0) // Nox/Lumos por defecto
@@ -54,6 +55,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private var lastZ = 0f
     private var lastTime: Long = 0
 
+    //region Sensores
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -65,9 +67,9 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         cameraId = cameraManager?.cameraIdList?.get(0)
 
         setContent {
-            ImageScreen(
+            MainScreen(
                 imageRes = imageSoundMap[currentIndex].first,
-                onImageClick = { changeImage() }
+                onImageClick = {changeImage()}
             )
         }
     }
@@ -85,6 +87,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         stopVibration()
         turnOffFlash()
         mediaPlayer?.release()
+        mediaPlayer=null
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -120,37 +123,70 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         }
     }
 
+    //endregion
+
     private fun activateAction() {
         when (currentIndex) {
-            0 -> toggleFlashAndImage() // Nox
-            1 -> toggleFlashAndImage() // Lumus
-            2 -> playCurrentSound() // Leviosa
-            3 -> playCurrentSound() // Expelliarmus
+            0,4 -> toggleNoxLumos() // Nox
+            1 -> {
+                playCurrentSound()
+                vibrateWhileElevated()
+            } // Leviosa
+            2 -> playCurrentSound() // Expelliarmus
+            3 -> {
+                playCurrentSound()
+                Handler(Looper.getMainLooper()).postDelayed({
+                    finish()            // Cierra la aplicación
+                }, 3000)               // Retraso
+            } // Avada Kedavra
         }
     }
 
-    private fun toggleFlashAndImage() {
-        if (isFlashOn) {
+    //region Lumos/Nox
+    private fun toggleNoxLumos(){
+        if(isFlashOn){
             turnOffFlash()
-        } else {
+            currentIndex=0
+        } else{
             turnOnFlash()
+            currentIndex=4
         }
         playCurrentSound()
+        updateImage()
     }
 
-    private fun changeImage() {
-        currentIndex = (currentIndex + 1) % imageSoundMap.size
-        if (currentIndex == 0 && isFlashOn) {
-            turnOffFlash() // Apagar la linterna si está encendida y se selecciona Nox/Lumos
+    private fun turnOnFlash(){
+        cameraId?.let{
+            cameraManager?.setTorchMode(it,true)
+            isFlashOn=true
         }
     }
+
+    private fun turnOffFlash(){
+        cameraId?.let{
+            cameraManager?.setTorchMode(it,false)
+            isFlashOn=false
+        }
+    }
+    //endregion
 
     private fun playCurrentSound() {
         mediaPlayer?.release()
         mediaPlayer = MediaPlayer.create(this, imageSoundMap[currentIndex].second)
         mediaPlayer?.start()
+        mediaPlayer?.setOnCompletionListener {
+            mediaPlayer?.release()
+            mediaPlayer = null
+            stopVibration()
+        }
+
+        if (currentIndex == 1){
+            isVibrating=true
+            vibrateWhileElevated()
+        }
     }
 
+    //region Leviosa
     private fun vibrateWhileElevated() {
         if (isVibrating) {
             vibrator?.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
@@ -163,20 +199,22 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         vibrationHandler.removeCallbacksAndMessages(null)
         vibrator?.cancel()
     }
+    //endregion
 
-    private fun turnOnFlash() {
-        cameraId?.let {
-            cameraManager?.setTorchMode(it, true)
-            isFlashOn = true
-            currentIndex = 1 // Cambiar a Lumos
+    private fun updateImage(){
+        setContent {
+            MainScreen(
+                imageRes = imageSoundMap[currentIndex].first,
+                onImageClick = {changeImage()}
+            )
         }
     }
 
-    private fun turnOffFlash() {
-        cameraId?.let {
-            cameraManager?.setTorchMode(it, false)
-            isFlashOn = false
-            currentIndex = 0 // Cambiar a Nox
+    private fun changeImage() {
+        if (!isFlashOn && (mediaPlayer == null || !mediaPlayer!!.isPlaying)) { // Permitir cambiar de hechizo solo si la linterna está apagada y no se está reproduciendo media
+            stopVibration()
+            currentIndex = (currentIndex + 1) % 4 // Solo permitir cambiar entre Expelliarmus, Leviosa, Avada Kedavra y Nox
+            updateImage()
         }
     }
 
@@ -191,7 +229,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 }
 
 @Composable
-fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
+fun MainScreen(imageRes: Int, onImageClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -203,17 +241,17 @@ fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
             contentDescription = "Imagen de hechizo",
             modifier = Modifier.fillMaxSize(),
         )
-
+        Spacer(Modifier.height(16.dp))
         // Texto superpuesto
         Text(
-            text = "Toca la imagen para cambiar\n" +
-                    "Agita el celular para activar:\n",
-            modifier = Modifier
-                .align(Alignment.BottomCenter) // Alinea el texto en la parte inferior
-                .padding(16.dp), // Añade un poco de espacio alrededor del texto
-            color = MaterialTheme.colorScheme.onSurface, // Color del texto para que sea visible
+            "Agita el celular para activar:\n" +
+                    "• Nox/Lumos: Alternar linterna\n" +
+                    "• Leviosa: Sonido y vibración\n" +
+                    "• Expelliarmus: Sonido\n" +
+                    "• Avada Kedabra: Sonido y \uD83D\uDC80\n",
+            color = Color.Black, // Color del texto para que sea visible
             fontSize = 18.sp, // Tamaño del texto
-            fontWeight = FontWeight.Bold // Texto en negrita
+            fontWeight = FontWeight.Bold, // Texto en negrita
         )
     }
 }
@@ -221,5 +259,8 @@ fun ImageScreen(imageRes: Int, onImageClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun PreviewImageScreen() {
-    ImageScreen(imageRes = R.drawable.nox) {}
+    MainScreen(
+      imageRes = R.drawable.nox,
+        onImageClick = {}
+    )
 }
